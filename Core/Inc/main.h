@@ -65,10 +65,6 @@ void Error_Handler(void);
 #define LED_SENSOR_2_GPIO_Port GPIOC
 #define ANA_SENSOR_1_Pin GPIO_PIN_0
 #define ANA_SENSOR_1_GPIO_Port GPIOA
-#define ANA_SENSOR_2_Pin GPIO_PIN_1
-#define ANA_SENSOR_2_GPIO_Port GPIOA
-#define ANA_SENSOR_3_Pin GPIO_PIN_4
-#define ANA_SENSOR_3_GPIO_Port GPIOA
 #define LED_SENSOR_1_Pin GPIO_PIN_0
 #define LED_SENSOR_1_GPIO_Port GPIOB
 #define LED_FREQ_SEND_DATA_Pin GPIO_PIN_7
