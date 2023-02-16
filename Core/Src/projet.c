@@ -131,11 +131,11 @@ void Fonction_Thread_Send(void* P_Info){
 		osMessageQueueGetCount(&i);
 		while(i--){
 			if (osMessageQueueGet(Pipe_Reception_Analyse,(void*)&Data, 0, osWaitForever) == osOK){
-				/*memcpy(json_message + sizeof(char) * INDEX_TIME, itoa(Data.Timestamp), sizeof(Data.Timestamp));
+				memcpy(json_message + sizeof(char) * INDEX_TIME, itoa(Data.Timestamp), sizeof(Data.Timestamp));
 				memcpy(json_message + sizeof(char) * INDEX_VALUE, itoa(Data.Value), sizeof(Data.Value));
-				memcpy(json_message + sizeof(char) * INDEX_TYPE, itoa(Data.Type), sizeof(Data.Type));*/
+				memcpy(json_message + sizeof(char) * INDEX_TYPE, itoa(Data.Type), sizeof(Data.Type));
 				// send via UART
-				_write(0, json_message, sizeof(json_message));
+				printf("%s", json_message);
 			}
 		}
 	}
@@ -187,9 +187,6 @@ int main(){
 	MX_RNG_Init();
 	MX_USART2_UART_Init();
 	osKernelInitialize();
-	// printf('printf\n');
-	char * P_Message = "Ici";
-	HAL_UART_Transmit(&huart2, (uint8_t *) P_Message, 3, HAL_MAX_DELAY);
 	Pipe_Reception_Analyse= osMessageQueueNew (TAILLE_PIPE_RECEPTION_ANALYSE, sizeof(uint8_t),NULL);
 	osThreadNew(Fonction_Thread_Sensor_1, NULL, &Config_Thread_Sensor_1);
 	osThreadNew(Fonction_Thread_Sensor_2, NULL, &Config_Thread_Sensor_2);
