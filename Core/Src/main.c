@@ -22,6 +22,7 @@
 #include "adc.h"
 #include "rng.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -114,7 +115,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void Callback_TIM_5(TIM_HandleTypeDef *htim);
 /* USER CODE END 4 */
 
 /**
@@ -134,7 +135,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  else{
+	  Callback_TIM_5(htim);
+  }
   /* USER CODE END Callback 1 */
 }
 

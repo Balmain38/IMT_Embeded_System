@@ -59,16 +59,25 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define BTN_SEND_DATA_Pin GPIO_PIN_13
 #define BTN_SEND_DATA_GPIO_Port GPIOC
+#define BTN_SEND_DATA_EXTI_IRQn EXTI15_10_IRQn
 #define LED_SENSOR_3_Pin GPIO_PIN_0
 #define LED_SENSOR_3_GPIO_Port GPIOC
 #define LED_SENSOR_2_Pin GPIO_PIN_1
 #define LED_SENSOR_2_GPIO_Port GPIOC
 #define ANA_SENSOR_1_Pin GPIO_PIN_0
 #define ANA_SENSOR_1_GPIO_Port GPIOA
+#define BTN_PLUS_Pin GPIO_PIN_1
+#define BTN_PLUS_GPIO_Port GPIOA
+#define BTN_PLUS_EXTI_IRQn EXTI1_IRQn
+#define BTN_MINUS_Pin GPIO_PIN_5
+#define BTN_MINUS_GPIO_Port GPIOA
 #define LED_SENSOR_1_Pin GPIO_PIN_0
 #define LED_SENSOR_1_GPIO_Port GPIOB
 #define LED_FREQ_SEND_DATA_Pin GPIO_PIN_7
 #define LED_FREQ_SEND_DATA_GPIO_Port GPIOC
+#define BTN_SELECT_Pin GPIO_PIN_10
+#define BTN_SELECT_GPIO_Port GPIOA
+#define BTN_SELECT_EXTI_IRQn EXTI15_10_IRQn
 #define PWM_BUZZER_Pin GPIO_PIN_12
 #define PWM_BUZZER_GPIO_Port GPIOC
 
