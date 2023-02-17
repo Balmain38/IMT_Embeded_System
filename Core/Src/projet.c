@@ -130,7 +130,7 @@ void Fonction_Thread_Send(void* P_Info){
 		int i;
 		osMessageQueueGetCount(&i);
 		while(i--){
-			if (osMessageQueueGet(Pipe_Reception_Analyse,(void*)&Data, 0, osWaitForever) == osOK){
+			if (osMessageQueueGet(Pipe_Reception_Analyse,(void*) &Data, 0, osWaitForever) == osOK){
 				memcpy(json_message + sizeof(char) * INDEX_TIME, itoa(Data.Timestamp), sizeof(Data.Timestamp));
 				memcpy(json_message + sizeof(char) * INDEX_VALUE, itoa(Data.Value), sizeof(Data.Value));
 				memcpy(json_message + sizeof(char) * INDEX_TYPE, itoa(Data.Type), sizeof(Data.Type));
