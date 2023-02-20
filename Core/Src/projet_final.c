@@ -7,11 +7,13 @@
 #include "string.h"
 #include "stdio.h"
 #include <stdlib.h>
+#include "tim.h"
 #include "usart.h"
 
 #define TAILLE_PIPE_RECEPTION_ANALYSE 200
 #define FLAG_SEND_DATA 1
 #define FLAG_WATCH_QUEUE 2
+#define FLAG_BUZZER 3
 #define INDEX_TIME 3
 #define INDEX_TYPE 16
 #define INDEX_VALUE 20
@@ -20,7 +22,7 @@
 volatile int period_sensor_1 = 200;
 volatile int period_sensor_2 = 300;
 volatile int period_sensor_3 = 600;
-volatile int period_send_data = 10000;
+volatile int period_send_data = 8000;
 char receive_buffer[MESSAGE_RECEIVE_SIZE];
 int state_config = 0;
 volatile int* PERIOD[4];
@@ -28,6 +30,7 @@ volatile int* PERIOD[4];
 osMessageQueueId_t Pipe_Reception_Analyse;
 osThreadId_t Thread_Send_Data;
 osThreadId_t Thread_Watch_Queue;
+osThreadId_t Thread_Buzzer;
 osThreadId_t Thread_Config;
 
 // volatile char* json_message = "{1:0000000000,2:0,3:0000}";
@@ -51,7 +54,7 @@ osThreadAttr_t Config_Thread_Sensor_1={
 	.stack_size=128*4 // Pile de 128 mots de 32 bits
 };
 osThreadAttr_t Config_Thread_Sensor_2={
-	.name="Thread_Sensor_1",
+	.name="Thread_Sensor_2",
 	.priority=osPriorityHigh, // le niveau est 8 (voir cmsis_os2.h)
 	.stack_size=128*4 // Pile de 128 mots de 32 bits
 };
@@ -61,15 +64,21 @@ osThreadAttr_t Config_Thread_Sensor_3={
 	.stack_size=128*4 // Pile de 128 mots de 32 bits
 };
 osThreadAttr_t Config_Thread_Send={
-	.name="Thread_Sensor_3",
+	.name="Thread_Sensor_Send",
 	.priority=osPriorityLow, // le niveau est 8 (voir cmsis_os2.h)
 	.stack_size=256*4 // Pile de 128 mots de 32 bits
 };
 osThreadAttr_t Config_Thread_Watch_Queue={
-	.name="Thread_Sensor_1",
+	.name="Thread_Watch_Queue",
 	.priority=osPriorityHigh, // le niveau est 8 (voir cmsis_os2.h)
 	.stack_size=128*4 // Pile de 128 mots de 32 bits
 };
+osThreadAttr_t Config_Thread_Buzzer={
+	.name="Thread_Buzzer",
+	.priority=osPriorityLow, // le niveau est 8 (voir cmsis_os2.h)
+	.stack_size=128*4 // Pile de 128 mots de 32 bits
+};
+
 
 // analog read
 void Fonction_Thread_Sensor_1(void* P_Info){
@@ -134,9 +143,9 @@ void Fonction_Thread_Send(void* P_Info){
 			// memcpy(json_message + sizeof(char) * INDEX_TYPE, itoa(Data.Type), sizeof(Data.Type));
 			// send via UART*/
 
-			// printf ("Ecriture Date : %d %d %d\n\r", Data.Hour.Hours, Data.Hour.Minutes, Data.Hour.Seconds);
-			printf("{\"1\":\"%d/%d/%d-%d:%d:%d\",\"2\":%d,\"3\":%d}\n", Data.Date.Date, Data.Date.Month, Data.Date.Year, Data.Hour.Hours, Data.Hour.Minutes, Data.Hour.Seconds, Data.Type, Data.Value);
+			printf("{1:%d/%d/%d-%d:%d:%d,2:%d,3:%d}", Data.Date.Date, Data.Date.Month, Data.Date.Year, Data.Hour.Hours, Data.Hour.Minutes, Data.Hour.Seconds, Data.Type, Data.Value);
 		}
+		osThreadFlagsSet(Thread_Buzzer, FLAG_BUZZER);
 	}
 	osThreadTerminate(NULL);
 }
@@ -147,6 +156,17 @@ void Fonction_Thread_Watch_Queue(void* P_Info){
 		if (osMessageQueueGetSpace(Pipe_Reception_Analyse) == 0){
 			osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
 		}
+	}
+}
+
+// RNG
+void Fonction_Thread_Buzzer(void* P_Info){
+	while (1){
+		osThreadFlagsWait(FLAG_BUZZER, osFlagsWaitAll, HAL_MAX_DELAY);
+		TIM1->CCR1 = 10;
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+		osDelay(200);
+		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 	}
 }
 
@@ -165,54 +185,50 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	memcpy(subbuff_6, &receive_buffer[24], 5);
 	subbuff_6[5] = '\0';
 	period_send_data = atoi(subbuff_6);
-	// printf("%d %d %d %d\n\r", period_sensor_1, period_sensor_2, period_sensor_3, period_send_data);
-	// {1:1000,2:1000,3:1000,4:03000}
-	// }*/
 	HAL_UART_Receive_IT(&huart2, (void*)&receive_buffer, MESSAGE_RECEIVE_SIZE);
 }
 
 void handler_btn_select(){
+	// Testing purpose
+	// printf("Bouton select, state config : %d\n\r", mess, state_config);*/
 	if(state_config != 0){
-		PORT[state_config]->ODR &= ~PIN[state_config];
+		PORT[state_config-1]->ODR &= ~PIN[state_config-1];
 	}
 	state_config++;
 	if(state_config > 4){
 		state_config = 0;
 	}
 	if(state_config != 0){
-		PORT[state_config]->ODR |= PIN[state_config];
+		PORT[state_config-1]->ODR |= PIN[state_config-1];
 	}
 }
 
 void handler_btn_plus(){
-	if (state_config != 4 && *(PERIOD[state_config]) < 2000) PERIOD[state_config] += 100;
-	else if (state_config == 4 && *(PERIOD[state_config]) < 10000) PERIOD[state_config] += 1000;
+	// Testing purpose
+	// printf("Bonton plus, state config : %d, période : %d\n\r", state_config, *(PERIOD[state_config-1]));
+	if (state_config != 4 && *(PERIOD[state_config-1]) < 2000) *(PERIOD[state_config-1]) += 100;
+	else if (state_config == 4 && *(PERIOD[state_config-1]) < 10000) *(PERIOD[state_config-1]) += 1000;
 }
 
 void handler_btn_minus(){
-	if (state_config != 4 && *(PERIOD[state_config]) > 100) PERIOD[state_config] -= 100;
-	else if (state_config == 4 && *(PERIOD[state_config]) > 1000) PERIOD[state_config] -= 100;
+	// Testing purpose
+	// printf("Bonton minus, state config : %d, période : %d\n\r", state_config, *(PERIOD[state_config-1]));
+	if (state_config != 4 && *(PERIOD[state_config-1]) > 100) *(PERIOD[state_config-1]) -= 100;
+	else if (state_config == 4 && *(PERIOD[state_config-1]) > 1000) *(PERIOD[state_config-1]) -= 1000;
 }
-
 
 void HAL_GPIO_EXTI_Callback(uint16_t P_Pin){
 	if (P_Pin == BTN_SEND_DATA_Pin){
 		osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
 	}
 	else if (P_Pin == BTN_SELECT_Pin){
-		char * mess = "Bouton select";
-		printf("%s, state config : %d\n\r", mess, state_config);
-		// handler_btn_select();
+		handler_btn_select();
 	}
-	else if (P_Pin == BTN_PLUS_Pin){ //  && state_config != 0
-		char * mes = "Bonton plus";
-		printf("%s, state config : %d\n\r", mes, state_config);
-		// handler_btn_plus();
+	else if (P_Pin == BTN_PLUS_Pin && state_config != 0){
+		handler_btn_plus();
 	}
-	else if (P_Pin == BTN_MINUS_Pin){ // && state_config != 0
-		char * me = "Bonton minus";
-		printf("%s, state config : %d\n\r", me, state_config);
-		// handler_btn_minus();
+	else if (P_Pin == BTN_MINUS_Pin && state_config != 0){
+		handler_btn_minus();
 	}
 }
 
@@ -244,12 +260,14 @@ int main(){
 	MX_GPIO_Init();
 	MX_RTC_Init();
 	MX_ADC1_Init();
+	MX_TIM1_Init();
 	osKernelInitialize();
 	HAL_UART_Receive_IT(&huart2, (void*)&receive_buffer, MESSAGE_RECEIVE_SIZE);
 	Pipe_Reception_Analyse = osMessageQueueNew(TAILLE_PIPE_RECEPTION_ANALYSE, sizeof(T_DATA), NULL);
 	osThreadNew(Fonction_Thread_Sensor_1, NULL, &Config_Thread_Sensor_1);
 	osThreadNew(Fonction_Thread_Sensor_2, NULL, &Config_Thread_Sensor_2);
 	osThreadNew(Fonction_Thread_Sensor_3, NULL, &Config_Thread_Sensor_3);
+	Thread_Buzzer = osThreadNew(Fonction_Thread_Buzzer, NULL, &Config_Thread_Buzzer);
 	Thread_Watch_Queue = osThreadNew(Fonction_Thread_Watch_Queue, NULL, &Config_Thread_Watch_Queue);
 	Thread_Send_Data = osThreadNew(Fonction_Thread_Send, NULL, &Config_Thread_Send);
 	osKernelStart();

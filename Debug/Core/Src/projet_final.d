@@ -45,7 +45,7 @@ Core/Src/projet_final.o: ../Core/Src/projet_final.c ../Core/Inc/main.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
- ../Core/Inc/gpio.h ../Core/Inc/rng.h ../Core/Inc/rtc.h \
+ ../Core/Inc/gpio.h ../Core/Inc/rng.h ../Core/Inc/rtc.h ../Core/Inc/tim.h \
  ../Core/Inc/usart.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -98,4 +98,5 @@ Core/Src/projet_final.o: ../Core/Src/projet_final.c ../Core/Inc/main.h \
 ../Core/Inc/gpio.h:
 ../Core/Inc/rng.h:
 ../Core/Inc/rtc.h:
+../Core/Inc/tim.h:
 ../Core/Inc/usart.h:
