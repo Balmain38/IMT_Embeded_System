@@ -26,6 +26,8 @@ volatile int period_send_data = 8000;
 char receive_buffer[MESSAGE_RECEIVE_SIZE];
 int state_config = 0;
 volatile int* PERIOD[4];
+const unsigned long DEBOUNCE_TIME = 300; // 0.3 sec
+unsigned long BTN_TIME = 0;
 
 osMessageQueueId_t Pipe_Reception_Analyse;
 osThreadId_t Thread_Send_Data;
@@ -218,17 +220,21 @@ void handler_btn_minus(){
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t P_Pin){
-	if (P_Pin == BTN_SEND_DATA_Pin){
-		osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
-	}
-	else if (P_Pin == BTN_SELECT_Pin){
-		handler_btn_select();
-	}
-	else if (P_Pin == BTN_PLUS_Pin && state_config != 0){
-		handler_btn_plus();
-	}
-	else if (P_Pin == BTN_MINUS_Pin && state_config != 0){
-		handler_btn_minus();
+	unsigned long L_Temps_Actuel = HAL_GetTick();
+	if ((L_Temps_Actuel - BTN_TIME) > DEBOUNCE_TIME) { // anti-rebonds
+		BTN_TIME = L_Temps_Actuel;
+		if (P_Pin == BTN_SEND_DATA_Pin){
+			osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
+		}
+		else if (P_Pin == BTN_SELECT_Pin){
+			handler_btn_select();
+		}
+		else if (P_Pin == BTN_PLUS_Pin && state_config != 0){
+			handler_btn_plus();
+		}
+		else if (P_Pin == BTN_MINUS_Pin && state_config != 0){
+			handler_btn_minus();
+		}
 	}
 }
 
