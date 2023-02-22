@@ -17,12 +17,12 @@
 #define INDEX_TIME 3
 #define INDEX_TYPE 16
 #define INDEX_VALUE 20
-#define MESSAGE_RECEIVE_SIZE 30
+#define MESSAGE_RECEIVE_SIZE 46
 
 volatile int period_sensor_1 = 200;
 volatile int period_sensor_2 = 300;
 volatile int period_sensor_3 = 600;
-volatile int period_send_data = 8000;
+volatile int period_send_data = 1000;
 char receive_buffer[MESSAGE_RECEIVE_SIZE];
 int state_config = 0;
 volatile int* PERIOD[4];
@@ -65,6 +65,11 @@ osThreadAttr_t Config_Thread_Sensor_3={
 	.priority=osPriorityHigh, // le niveau est 8 (voir cmsis_os2.h)
 	.stack_size=128*4 // Pile de 128 mots de 32 bits
 };
+osThreadAttr_t Config_Thread_Awake_Send={
+	.name="Thread_Awake_Send",
+	.priority=osPriorityHigh, // le niveau est 8 (voir cmsis_os2.h)
+	.stack_size=128*4 // Pile de 128 mots de 32 bits
+};
 osThreadAttr_t Config_Thread_Send={
 	.name="Thread_Sensor_Send",
 	.priority=osPriorityLow, // le niveau est 8 (voir cmsis_os2.h)
@@ -94,7 +99,7 @@ void Fonction_Thread_Sensor_1(void* P_Info){
 		HAL_RTC_GetTime(&hrtc, &Data.Hour, RTC_FORMAT_BIN);
 		osMessageQueuePut(Pipe_Reception_Analyse, (void*)&Data, 0, osWaitForever);
 		osThreadFlagsSet(Thread_Watch_Queue, FLAG_WATCH_QUEUE);
-		osDelay(period_sensor_3);
+		osDelay(period_sensor_1);
 	}
 	osThreadTerminate(NULL);
 }
@@ -108,7 +113,7 @@ void Fonction_Thread_Sensor_2(void* P_Info){
 		HAL_RTC_GetTime(&hrtc, &Data.Hour, RTC_FORMAT_BIN);
 		osMessageQueuePut(Pipe_Reception_Analyse, (void*)&Data, 0, osWaitForever);
 		osThreadFlagsSet(Thread_Watch_Queue, FLAG_WATCH_QUEUE);
-		osDelay(period_sensor_1);
+		osDelay(period_sensor_2);
 	}
 	osThreadTerminate(NULL);
 }
@@ -122,14 +127,21 @@ void Fonction_Thread_Sensor_3(void* P_Info){
 		HAL_RTC_GetTime(&hrtc, &Data.Hour, RTC_FORMAT_BIN);
 		osMessageQueuePut(Pipe_Reception_Analyse, (void*)&Data, 0, osWaitForever);
 		osThreadFlagsSet(Thread_Watch_Queue, FLAG_WATCH_QUEUE);
-		osDelay(period_sensor_2);
+		osDelay(period_sensor_3);
 	}
 	osThreadTerminate(NULL);
 }
 
+/*void Fonction_Thread_Awake_Send(void* P_info){
+	while (1){
+		osDelay(period_send_data);
+		osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
+	}
+	osThreadTerminate(NULL);
+}*/
+
 void Fonction_Thread_Send(void* P_Info){
 	T_DATA Data;
-	// char* json_message = "{1:0000000000,2:0,3:0000}";
 	while(1){
 		osThreadFlagsWait(FLAG_SEND_DATA, osFlagsWaitAll, period_send_data);
 		int i = osMessageQueueGetCount(Pipe_Reception_Analyse);
@@ -159,6 +171,7 @@ void Fonction_Thread_Watch_Queue(void* P_Info){
 			osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
 		}
 	}
+	osThreadTerminate(NULL);
 }
 
 // RNG
@@ -170,21 +183,22 @@ void Fonction_Thread_Buzzer(void* P_Info){
 		osDelay(200);
 		HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 	}
+	osThreadTerminate(NULL);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	char subbuff_5[5];
 	char subbuff_6[6];
-	memcpy(subbuff_5, &receive_buffer[3], 4);
+	memcpy(subbuff_5, &receive_buffer[6], 4);
 	subbuff_5[4] = '\0';
 	period_sensor_1 = atoi(subbuff_5);
-	memcpy(subbuff_5, &receive_buffer[10], 4);
-	subbuff_5[4] = '\0';
-	period_sensor_2 = atoi(subbuff_5);
 	memcpy(subbuff_5, &receive_buffer[17], 4);
 	subbuff_5[4] = '\0';
+	period_sensor_2 = atoi(subbuff_5);
+	memcpy(subbuff_5, &receive_buffer[28], 4);
+	subbuff_5[4] = '\0';
 	period_sensor_3 = atoi(subbuff_5);
-	memcpy(subbuff_6, &receive_buffer[24], 5);
+	memcpy(subbuff_6, &receive_buffer[39], 5);
 	subbuff_6[5] = '\0';
 	period_send_data = atoi(subbuff_6);
 	HAL_UART_Receive_IT(&huart2, (void*)&receive_buffer, MESSAGE_RECEIVE_SIZE);
@@ -273,6 +287,7 @@ int main(){
 	osThreadNew(Fonction_Thread_Sensor_1, NULL, &Config_Thread_Sensor_1);
 	osThreadNew(Fonction_Thread_Sensor_2, NULL, &Config_Thread_Sensor_2);
 	osThreadNew(Fonction_Thread_Sensor_3, NULL, &Config_Thread_Sensor_3);
+	// osThreadNew(Fonction_Thread_Awake_Send, NULL, &Config_Thread_Awake_Send);
 	Thread_Buzzer = osThreadNew(Fonction_Thread_Buzzer, NULL, &Config_Thread_Buzzer);
 	Thread_Watch_Queue = osThreadNew(Fonction_Thread_Watch_Queue, NULL, &Config_Thread_Watch_Queue);
 	Thread_Send_Data = osThreadNew(Fonction_Thread_Send, NULL, &Config_Thread_Send);
