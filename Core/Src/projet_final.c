@@ -22,7 +22,7 @@
 volatile int period_sensor_1 = 200;
 volatile int period_sensor_2 = 300;
 volatile int period_sensor_3 = 600;
-volatile int period_send_data = 1000;
+volatile int period_send_data = 5000;
 char receive_buffer[MESSAGE_RECEIVE_SIZE];
 int state_config = 0;
 volatile int* PERIOD[4];
@@ -62,11 +62,6 @@ osThreadAttr_t Config_Thread_Sensor_2={
 };
 osThreadAttr_t Config_Thread_Sensor_3={
 	.name="Thread_Sensor_3",
-	.priority=osPriorityHigh, // le niveau est 8 (voir cmsis_os2.h)
-	.stack_size=128*4 // Pile de 128 mots de 32 bits
-};
-osThreadAttr_t Config_Thread_Awake_Send={
-	.name="Thread_Awake_Send",
 	.priority=osPriorityHigh, // le niveau est 8 (voir cmsis_os2.h)
 	.stack_size=128*4 // Pile de 128 mots de 32 bits
 };
@@ -132,32 +127,68 @@ void Fonction_Thread_Sensor_3(void* P_Info){
 	osThreadTerminate(NULL);
 }
 
-/*void Fonction_Thread_Awake_Send(void* P_info){
-	while (1){
-		osDelay(period_send_data);
-		osThreadFlagsSet(Thread_Send_Data, FLAG_SEND_DATA);
-	}
-	osThreadTerminate(NULL);
-}*/
-
 void Fonction_Thread_Send(void* P_Info){
 	T_DATA Data;
 	while(1){
 		osThreadFlagsWait(FLAG_SEND_DATA, osFlagsWaitAll, period_send_data);
 		int i = osMessageQueueGetCount(Pipe_Reception_Analyse);
+		char buffer[5];
+		char json_message[] = "{1:00/00/0000-00-00-00,2:1,3:0000}";
+		int decalage;
 		while(i--){
 			osMessageQueueGet(Pipe_Reception_Analyse, &Data, NULL, osWaitForever);
-			/* char * buffer[sizeof(Data.Value)];
+			memset(buffer, '0', 5);
+			decalage = 0;
 
-			char * vide[10];
+			itoa(Data.Date.Date, buffer, 10);
+			if (Data.Date.Date < 10) decalage = 1;
+			memcpy(json_message + sizeof(char) * 3 + decalage, buffer, 2 - decalage);
+			memset(buffer, '0', 5);
+			decalage = 0;
+
+			itoa(Data.Date.Month, buffer, 10);
+			if (Data.Date.Month < 10) decalage = 1;
+			memcpy(json_message + sizeof(char) * 6 + decalage, buffer, 2 - decalage);
+			memset(buffer, '0', 5);
+			decalage = 0;
+
+			itoa(Data.Date.Year, buffer, 10);
+			if (Data.Date.Year < 10) decalage = 3;
+			if (Data.Date.Year < 100) decalage = 2;
+			if (Data.Date.Year < 1000) decalage = 1;
+			memcpy(json_message + sizeof(char) * 9 + decalage, buffer, 2 - decalage);
+			memset(buffer, '0', 5);
+			decalage = 0;
+
+			itoa(Data.Hour.Hours, buffer, 10);
+			if (Data.Hour.Hours < 10) decalage = 1;
+			memcpy(json_message + sizeof(char) * 14 + decalage, buffer, 2 - decalage);
+			memset(buffer, '0', 5);
+			decalage = 0;
+
+			itoa(Data.Hour.Minutes, buffer, 10);
+			if (Data.Hour.Minutes < 10) decalage = 1;
+			memcpy(json_message + sizeof(char) * 17 + decalage, buffer, 2 - decalage);
+			memset(buffer, '0', 5);
+			decalage = 0;
+
+			itoa(Data.Hour.Seconds, buffer, 10);
+			if (Data.Hour.Seconds < 10) decalage = 1;
+			memcpy(json_message + sizeof(char) * 20 + decalage, buffer, 2 - decalage);
+			memset(buffer, '0', 5);
+
+			itoa(Data.Type, buffer, 10);
+			memcpy(json_message + sizeof(char) * 25, buffer, 1);
+			memset(buffer, '0', 5);
+			decalage = 0;
+
 			itoa(Data.Value, buffer, 10);
-			// printf("Received data : %s\n\r", buffer);
-			// memcpy(json_message + sizeof(char) * INDEX_TIME, itoa(Data.Timestamp), sizeof(Data.Timestamp));
-			// memcpy(json_message, buffer, sizeof(Data.Value));
-			// memcpy(json_message + sizeof(char) * INDEX_TYPE, itoa(Data.Type), sizeof(Data.Type));
-			// send via UART*/
+			if (Data.Value < 10) decalage = 3;
+			else if (Data.Value < 100) decalage = 2;
+			else if (Data.Value < 1000) decalage = 1;
+			memcpy(json_message + sizeof(char) * 29 + decalage, buffer, 4 - decalage);
 
-			printf("{1:%d/%d/%d-%d:%d:%d,2:%d,3:%d}", Data.Date.Date, Data.Date.Month, Data.Date.Year, Data.Hour.Hours, Data.Hour.Minutes, Data.Hour.Seconds, Data.Type, Data.Value);
+			printf("%s", json_message);
 		}
 		osThreadFlagsSet(Thread_Buzzer, FLAG_BUZZER);
 	}
@@ -287,7 +318,6 @@ int main(){
 	osThreadNew(Fonction_Thread_Sensor_1, NULL, &Config_Thread_Sensor_1);
 	osThreadNew(Fonction_Thread_Sensor_2, NULL, &Config_Thread_Sensor_2);
 	osThreadNew(Fonction_Thread_Sensor_3, NULL, &Config_Thread_Sensor_3);
-	// osThreadNew(Fonction_Thread_Awake_Send, NULL, &Config_Thread_Awake_Send);
 	Thread_Buzzer = osThreadNew(Fonction_Thread_Buzzer, NULL, &Config_Thread_Buzzer);
 	Thread_Watch_Queue = osThreadNew(Fonction_Thread_Watch_Queue, NULL, &Config_Thread_Watch_Queue);
 	Thread_Send_Data = osThreadNew(Fonction_Thread_Send, NULL, &Config_Thread_Send);
