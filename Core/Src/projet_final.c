@@ -134,6 +134,7 @@ void Fonction_Thread_Send(void* P_Info){
 		int i = osMessageQueueGetCount(Pipe_Reception_Analyse);
 		char buffer[5];
 		char json_message[] = "{1:00/00/0000-00-00-00,2:1,3:0000}";
+		char buffer_zero[] = "0000";
 		int decalage;
 		while(i--){
 			osMessageQueueGet(Pipe_Reception_Analyse, &Data, NULL, osWaitForever);
@@ -188,7 +189,9 @@ void Fonction_Thread_Send(void* P_Info){
 			else if (Data.Value < 1000) decalage = 1;
 			memcpy(json_message + sizeof(char) * 29 + decalage, buffer, 4 - decalage);
 
-			printf("%s", json_message);
+			printf("%s\n", json_message);
+			// reset value to 0000
+			memcpy(json_message + sizeof(char) * 29, buffer_zero, 4);
 		}
 		osThreadFlagsSet(Thread_Buzzer, FLAG_BUZZER);
 	}
@@ -205,7 +208,6 @@ void Fonction_Thread_Watch_Queue(void* P_Info){
 	osThreadTerminate(NULL);
 }
 
-// RNG
 void Fonction_Thread_Buzzer(void* P_Info){
 	while (1){
 		osThreadFlagsWait(FLAG_BUZZER, osFlagsWaitAll, HAL_MAX_DELAY);
